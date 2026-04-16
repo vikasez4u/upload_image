@@ -9,7 +9,8 @@ const { extractConnectionStringParts } = require('../util');
 
 const DEFAULT_CONTAINER_NAME = process.env.IMAGE_CONTAINER_NAME || 'images';
 const SAS_DURATION_MINUTES = 15;
-const DEFAULT_ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
+const DEFAULT_ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://prohealplusui-c4ddg7aaeacfb8cp.ukwest-01.azurewebsites.net';
+// const DEFAULT_ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
 
 app.http('credentials', {
     route: 'api/credentials',
