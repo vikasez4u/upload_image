@@ -12,7 +12,7 @@ on:
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
   DEPLOY_ARTIFACT_PATH: './deploy-package'
-  NODE_VERSION: '22.x'
+  NODE_VERSION: '20.x'
 
 jobs:
   build:
@@ -33,16 +33,35 @@ jobs:
         shell: pwsh
         run: |
           pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-          npm install
+          npm ci
           npm run build --if-present
           npm run test --if-present
           popd
+
+      - name: Prepare deployment package
+        shell: pwsh
+        run: |
+          $deployPath = "${{ env.DEPLOY_ARTIFACT_PATH }}"
+          if (Test-Path $deployPath) {
+            Remove-Item -Recurse -Force $deployPath
+          }
+
+          New-Item -ItemType Directory -Path $deployPath | Out-Null
+          Copy-Item host.json $deployPath
+          Copy-Item package.json $deployPath
+          Copy-Item package-lock.json $deployPath
+          Copy-Item README.md $deployPath -ErrorAction SilentlyContinue
+          Copy-Item src $deployPath -Recurse
+
+          Push-Location $deployPath
+          npm ci --omit=dev
+          Pop-Location
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          path: ${{ env.DEPLOY_ARTIFACT_PATH }}
 
   deploy:
     runs-on: windows-latest
