@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Azure Blob Storage Image Upload</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: linear-gradient(160deg, #fff8ef 0%, #f6fbff 45%, #eef7f1 100%);
+        --surface: rgba(255, 255, 255, 0.86);
+        --border: rgba(11, 35, 64, 0.08);
+        --text: #0d1b2a;
+        --muted: #4f6478;
+        --accent: #0078d4;
+        --accent-strong: #005ea6;
+        --success: #0f9d58;
+        --danger: #bf3b2c;
+        --shadow: 0 24px 70px rgba(13, 27, 42, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+        color: var(--text);
+        background: var(--bg);
+        min-height: 100vh;
+      }
+
+      main {
+        width: min(960px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 48px 0 64px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 24px;
+        grid-template-columns: 1.15fr 0.85fr;
+        align-items: start;
+      }
+
+      .card {
+        background: var(--surface);
+        backdrop-filter: blur(12px);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .intro {
+        padding: 32px;
+      }
+
+      .eyebrow {
+        margin: 0 0 12px;
+        font-size: 0.85rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2.2rem, 4vw, 4rem);
+        line-height: 0.95;
+      }
+
+      .lead {
+        margin: 16px 0 0;
+        max-width: 44rem;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.6;
+      }
+
+      .panel {
+        padding: 28px;
+      }
+
+      form {
+        display: grid;
+        gap: 18px;
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+      }
+
+      label {
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+
+      input[type="file"] {
+        width: 100%;
+        border: 1px dashed rgba(0, 120, 212, 0.35);
+        border-radius: 18px;
+        padding: 16px;
+        background: rgba(0, 120, 212, 0.04);
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 14px 20px;
+        font-weight: 700;
+        font-size: 1rem;
+        background: linear-gradient(135deg, var(--accent), #26a0da);
+        color: white;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+
+      .meta {
+        margin-top: 22px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .status {
+        min-height: 24px;
+        font-weight: 600;
+      }
+
+      .status[data-state="error"] {
+        color: var(--danger);
+      }
+
+      .status[data-state="success"] {
+        color: var(--success);
+      }
+
+      progress {
+        width: 100%;
+        height: 12px;
+      }
+
+      .preview {
+        overflow: hidden;
+        min-height: 100%;
+      }
+
+      .preview img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        object-fit: cover;
+        background: linear-gradient(135deg, rgba(0, 120, 212, 0.08), rgba(15, 157, 88, 0.08));
+      }
+
+      .preview-copy {
+        padding: 22px 24px 28px;
+      }
+
+      .preview-copy h2 {
+        margin: 0 0 8px;
+        font-size: 1.15rem;
+      }
+
+      .preview-copy p,
+      .preview-copy a,
+      .preview-copy code {
+        color: var(--muted);
+        word-break: break-word;
+      }
+
+      code {
+        display: block;
+        margin-top: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(13, 27, 42, 0.05);
+        font-family: Consolas, monospace;
+        font-size: 0.92rem;
+      }
+
+      @media (max-width: 840px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        main {
+          padding-top: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <article class="card intro">
+          <p class="eyebrow">Azure Blob Upload</p>
+          <h1>Upload images straight from the browser with a short-lived SAS.</h1>
+          <p class="lead">
+            This page requests upload credentials from the Azure Function, then sends the selected image directly to Blob Storage.
+            The storage account key stays on the server.
+          </p>
+        </article>
+
+        <section class="card panel">
+          <form id="upload-form">
+            <div class="field">
+              <label for="image">Image file</label>
+              <input type="file" id="image" name="image" accept="image/png,image/jpeg,image/webp,image/gif" required>
+            </div>
+
+            <button id="upload-button" type="submit">Upload to Blob Storage</button>
+          </form>
+
+          <div class="meta">
+            <div id="status" class="status" aria-live="polite">Waiting for a file.</div>
+            <progress id="progress" max="100" value="0" hidden></progress>
+            <code id="details">No upload started yet.</code>
+          </div>
+        </section>
+
+        <aside class="card preview">
+          <img id="preview-image" alt="Selected image preview">
+          <div class="preview-copy">
+            <h2>Uploaded blob</h2>
+            <p id="blob-url">Blob URL will appear here after upload.</p>
+          </div>
+        </aside>
+      </section>
+    </main>
+    <script src="./upload.js" type="module"></script>
+  </body>
+</html>
