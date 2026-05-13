@@ -12,6 +12,7 @@ on:
 env:
   AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: '22.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  DEPLOY_ARTIFACT_PATH: './deploy-package' # set this to the path to the folder that will be zipped and deployed, defaults to the repository root
 
 jobs:
   build:
@@ -32,16 +33,35 @@ jobs:
         shell: pwsh
         run: |
           pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
-          npm install
+          npm ci
           npm run build --if-present
           npm run test --if-present
           popd
+
+      - name: Prepare deployment package
+        shell: pwsh
+        run: |
+          $deployPath = "${{ env.DEPLOY_ARTIFACT_PATH }}"
+          if (Test-Path $deployPath) {
+            Remove-Item -Recurse -Force $deployPath
+          }
+
+          New-Item -ItemType Directory -Path $deployPath | Out-Null
+          Copy-Item host.json $deployPath
+          Copy-Item package.json $deployPath
+          Copy-Item package-lock.json $deployPath
+          Copy-Item README.md $deployPath -ErrorAction SilentlyContinue
+          Copy-Item src $deployPath -Recurse
+
+          Push-Location $deployPath
+          npm ci --omit=dev
+          Pop-Location
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: ${{ env.DEPLOY_ARTIFACT_PATH }}
 
   deploy:
     runs-on: windows-latest
@@ -55,6 +75,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: node-app
+          path: ${{ env.DEPLOY_ARTIFACT_PATH }}
       
       - name: Login to Azure
         uses: azure/login@v2
@@ -69,5 +90,5 @@ jobs:
         with:
           app-name: 'MedaraEmarImages'
           slot-name: 'Production'
-          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          package: ${{ env.DEPLOY_ARTIFACT_PATH }}
           
