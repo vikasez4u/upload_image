@@ -120,7 +120,7 @@ app.http('credentials-read', {
 
         // blobPath is the full blob name inside the fixed video container
         // (e.g. "videos/{uuid}/fruits.mp4"), not "<containerName>/<blobName>".
-        const containerName = DEFAULT_CONTAINER_NAME_VIDEO;
+        const containerName = DEFAULT_CONTAINER_NAME;
         const blobName = blobPath;
 
         context.log(`Issuing read SAS for blob: ${containerName}/${blobName}`);
