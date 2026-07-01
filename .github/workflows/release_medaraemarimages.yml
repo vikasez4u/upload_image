@@ -1,0 +1,94 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js project to Azure Function App - MedaraEmarImages
+
+on:
+  push:
+    branches:
+      - release
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
+  NODE_VERSION: '22.x' # set this to the node version to use (supports 8.x, 10.x, 12.x)
+  DEPLOY_ARTIFACT_PATH: './deploy-package' # set this to the path to the folder that will be zipped and deployed, defaults to the repository root
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read #This is required for actions/checkout
+      
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 'Resolve Project Dependencies Using Npm'
+        shell: pwsh
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          npm ci
+          npm run build --if-present
+          npm run test --if-present
+          popd
+
+      - name: Prepare deployment package
+        shell: pwsh
+        run: |
+          $deployPath = "${{ env.DEPLOY_ARTIFACT_PATH }}"
+          if (Test-Path $deployPath) {
+            Remove-Item -Recurse -Force $deployPath
+          }
+
+          New-Item -ItemType Directory -Path $deployPath | Out-Null
+          Copy-Item host.json $deployPath
+          Copy-Item package.json $deployPath
+          Copy-Item package-lock.json $deployPath
+          Copy-Item README.md $deployPath -ErrorAction SilentlyContinue
+          Copy-Item src $deployPath -Recurse
+
+          Push-Location $deployPath
+          npm ci --omit=dev
+          Pop-Location
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path: ${{ env.DEPLOY_ARTIFACT_PATH }}
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+          path: ${{ env.DEPLOY_ARTIFACT_PATH }}
+      
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_752F1F0ABA774BB9BFCFB04078E0A3A4 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_EAECD9B3AD4A43DAA939C6B8A687D3CC }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_FF0802C09B2F4AF4A44499413CA75050 }}
+
+      - name: 'Run Azure Functions Action'
+        uses: Azure/functions-action@v1
+        id: fa
+        with:
+          app-name: 'MedaraEmarImages'
+          slot-name: 'Production'
+          package: ${{ env.DEPLOY_ARTIFACT_PATH }}
+          

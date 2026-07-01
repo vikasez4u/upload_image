@@ -1,0 +1,84 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy Node.js project to Azure Function App - MedaraEmarImages
+
+on:
+  push:
+    branches:
+      - release
+  workflow_dispatch:
+
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
+  DEPLOY_ARTIFACT_PATH: './deploy-package'
+  NODE_VERSION: '22.x'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read #This is required for actions/checkout
+      
+    steps:
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }} Environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 'Resolve Project Dependencies Using Npm'
+        shell: pwsh
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          npm ci
+          npm run build --if-present
+          npm run test --if-present
+          popd
+
+      - name: Prepare deployment package
+        shell: pwsh
+        run: |
+          $deployPath = "${{ env.DEPLOY_ARTIFACT_PATH }}"
+          if (Test-Path $deployPath) {
+            Remove-Item -Recurse -Force $deployPath
+          }
+
+          New-Item -ItemType Directory -Path $deployPath | Out-Null
+          Copy-Item host.json $deployPath
+          Copy-Item package.json $deployPath
+          Copy-Item package-lock.json $deployPath
+          Copy-Item README.md $deployPath -ErrorAction SilentlyContinue
+          Copy-Item src $deployPath -Recurse
+
+          Push-Location $deployPath
+          npm ci --omit=dev
+          Pop-Location
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-app
+          path: ${{ env.DEPLOY_ARTIFACT_PATH }}
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+          path: ${{ env.DEPLOY_ARTIFACT_PATH }}
+      
+      - name: 'Run Azure Functions Action'
+        uses: Azure/functions-action@v1
+        id: fa
+        with:
+          app-name: 'MedaraEmarImages'
+          slot-name: 'Production'
+          package: ${{ env.DEPLOY_ARTIFACT_PATH }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_934B7B8B6C344E349DA611BCC6EA883F }}
