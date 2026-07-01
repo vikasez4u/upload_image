@@ -118,18 +118,10 @@ app.http('credentials-read', {
             };
         }
 
-        // blobPath is expected as "<containerName>/<blobName>" or just "<blobName>"
-        // when the container is fixed.  We split on the first slash.
-        const slashIndex = blobPath.indexOf('/');
-        let containerName, blobName;
-
-        if (slashIndex === -1) {
-            containerName = DEFAULT_CONTAINER_NAME;
-            blobName = blobPath;
-        } else {
-            containerName = blobPath.slice(0, slashIndex);
-            blobName = blobPath.slice(slashIndex + 1);
-        }
+        // blobPath is the full blob name inside the fixed video container
+        // (e.g. "videos/{uuid}/fruits.mp4"), not "<containerName>/<blobName>".
+        const containerName = DEFAULT_CONTAINER_NAME_VIDEO;
+        const blobName = blobPath;
 
         context.log(`Issuing read SAS for blob: ${containerName}/${blobName}`);
 
@@ -165,5 +157,9 @@ function buildReadSasUrl(connectionString, containerName, blobName) {
         contentDisposition: 'inline'
     }, credential).toString();
 
-    return `${url}/${containerName}/${encodeURIComponent(blobName)}?${sasToken}`;
+    return `${url}/${containerName}/${encodeBlobPath(blobName)}?${sasToken}`;
+}
+
+function encodeBlobPath(blobName) {
+    return blobName.split('/').map(encodeURIComponent).join('/');
 }
