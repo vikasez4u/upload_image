@@ -124,7 +124,7 @@ app.http('credentials-read', {
         let containerName, blobName;
 
         if (slashIndex === -1) {
-            containerName = DEFAULT_CONTAINER_NAME_VIDEO;
+            containerName = DEFAULT_CONTAINER_NAME;
             blobName = blobPath;
         } else {
             containerName = blobPath.slice(0, slashIndex);
