@@ -9,6 +9,7 @@ const {
 const { extractConnectionStringParts } = require('../util');
 
 const DEFAULT_CONTAINER_NAME = process.env.IMAGE_CONTAINER_NAME || 'images';
+const DEFAULT_CONTAINER_NAME_VIDEO = process.env.VIDEO_CONTAINER_NAME || 'videos';
 const SAS_DURATION_MINUTES = 15;
 const DEFAULT_ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'https://medaraemarui-hdcgdqcbg0g4cnan.ukwest-01.azurewebsites.net' || '';
 // const DEFAULT_ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || 'http://localhost:5173';
@@ -123,7 +124,7 @@ app.http('credentials-read', {
         let containerName, blobName;
 
         if (slashIndex === -1) {
-            containerName = DEFAULT_CONTAINER_NAME;
+            containerName = DEFAULT_CONTAINER_NAME_VIDEO;
             blobName = blobPath;
         } else {
             containerName = blobPath.slice(0, slashIndex);
