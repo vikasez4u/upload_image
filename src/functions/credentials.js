@@ -187,7 +187,7 @@ app.http('delete-blob', {
             };
         }
 
-        const containerName = DEFAULT_CONTAINER_NAME_VIDEO;
+        const containerName = DEFAULT_CONTAINER_NAME;
         const connectionString = process.env.AzureWebJobsStorage;
 
         try {
