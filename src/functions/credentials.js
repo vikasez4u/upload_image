@@ -48,12 +48,12 @@ app.http('credentials', {
     }
 });
 
-function buildCorsHeaders(origin) {
+function buildCorsHeaders(origin, methods = 'GET, OPTIONS') {
     const allowedOrigin = origin || DEFAULT_ALLOWED_ORIGIN;
 
     return {
         'Access-Control-Allow-Origin': allowedOrigin,
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Methods': methods,
         'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization',
         'Vary': 'Origin'
     };
@@ -163,3 +163,51 @@ function buildReadSasUrl(connectionString, containerName, blobName) {
 function encodeBlobPath(blobName) {
     return blobName.split('/').map(encodeURIComponent).join('/');
 }
+
+// ── Delete blob endpoint ─────────────────────────────────────────────────────
+// Deletes a single video blob identified by blobPath.
+app.http('delete-blob', {
+    route: 'api/delete-blob',
+    methods: ['DELETE', 'OPTIONS'],
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        const corsHeaders = buildCorsHeaders(request.headers.get('origin'), 'DELETE, OPTIONS');
+
+        if (request.method === 'OPTIONS') {
+            return { status: 204, headers: corsHeaders };
+        }
+
+        const blobPath = request.query.get('blobPath');
+
+        if (!blobPath) {
+            return {
+                status: 400,
+                jsonBody: { error: 'blobPath query parameter is required.' },
+                headers: corsHeaders
+            };
+        }
+
+        const containerName = DEFAULT_CONTAINER_NAME_VIDEO;
+        const connectionString = process.env.AzureWebJobsStorage;
+
+        try {
+            const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+            const containerClient = blobServiceClient.getContainerClient(containerName);
+            const blobClient = containerClient.getBlobClient(blobPath.trim());
+
+            await blobClient.deleteIfExists();
+
+            context.log(`Deleted blob: ${containerName}/${blobPath}`);
+
+            return { status: 204, headers: corsHeaders };
+        } catch (error) {
+            context.error(`Failed to delete blob ${containerName}/${blobPath}: ${error.message}`);
+
+            return {
+                status: 500,
+                jsonBody: { error: 'Failed to delete blob' },
+                headers: corsHeaders
+            };
+        }
+    }
+});
